@@ -1,0 +1,112 @@
+---
+title: "scRNA File formats"
+output: html_document
+date: "2025-10-13"
+---
+
+Script to read and access single cell matrices in various file formats 
+and converting to seurat object 
+
+```{r}
+
+setwd("../Fileformat/")
+
+```
+
+#Packages required
+1. Seurat is the main R package for single-cell data analysis.
+2. SeuratDisk is a helper package mainly for saving, loading, and converting Seurat objects efficiently across different formats and tools (like Python’s AnnData / Scanpy).
+
+#If not installed
+```{r}
+install.packages("Seurat")
+install.packages("remotes")
+remotes::install_github("mojaveazure/seurat-disk")
+```
+
+#Load the libraries
+```{r}
+library(Seurat)
+library(SeuratDisk)
+```
+
+FILE FORMATS OF scRNA
+
+1. RDS format = Completely proceesed seurat object 
+#Read using readRDS()
+```{r include=FALSE}
+rds_obj <- readRDS(file = "../Fileformat/training_session_datasets/ifnb_harmony.rds")
+str(rds_obj)  #To see the structure of the object
+```
+
+```{r}
+View(rds_obj) #To view the entire objects
+View(rds_obj@meta.data) #To view the metadata
+```
+
+2. 10x cellranger - 
+
+#2.1 HDF5 format = Raw Feature barcode matrix [ROws - features or genes, COLUMNS - Cell or barcodes ]
+
+```{r}
+#Step 1 - Read using Read10X_h5()
+hdf5_raw_obj  <- Read10X_h5(filename = "../Fileformat/training_session_datasets/20k_NSCLC_DTC_3p_nextgem_Multiplex_count_raw_feature_bc_matrix.h5")
+str(hdf5_raw_obj)
+#It has 3 lists
+```
+
+```{r}
+#Step 2 Extract only gene expression which contains feature barcode matrix
+counts_hdf5 <- hdf5_raw_obj$`Gene Expression`
+counts_hdf5[1:5,1:5]
+```
+
+```{r}
+#Step 3- Create Seurat object
+counts_hdf5_seurat <- CreateSeuratObject(counts = counts_hdf5, project = "NSCLC", min.cells = 3, min.features = 200)
+```
+
+# 2.2 HDF5 format = Filtered Feature barcode matrix [ROws - features or genes, COLUMNS - Cell or barcodes ]
+```{r}
+#Step 1 - Read using Read10X_h5()
+hdf5_filtered_obj  <- Read10X_h5(filename = "../Fileformat/training_session_datasets/20k_PBMC_3p_HT_nextgem_Chromium_X_filtered_feature_bc_matrix.h5", 
+                        use.names = TRUE, 
+                        unique.features = TRUE)
+#Step 2 - Create Seurat object
+hdf5_filtered_seurat <- CreateSeuratObject(counts = hdf5_obj, project = "PBMC", min.cells = 3, 
+                                  min.features = 200)
+
+```
+
+#2.3 MTX format - Proccesed files from cellranger have .mtx -  Matrix Market format file format - 
+Extract 10k_PBMC_3p_nextgem_Chromium_Controller_raw_feature_bc_matrix.tar.gz 
+Files are extracted in raw_feature_bc_matrix folder
+```{r}
+#Step 1 - Read by ReadMtx()
+mtx_object <- ReadMtx(mtx = "../Fileformat/training_session_datasets/raw_feature_bc_matrix/matrix.mtx.gz", cells = "../Fileformat/training_session_datasets/raw_feature_bc_matrix/barcodes.tsv.gz", features = "../Fileformat/training_session_datasets/raw_feature_bc_matrix/features.tsv.gz")
+
+#Step 2 - Create Seurat object
+mtx_seurat <- CreateSeuratObject(counts = mtx_object)
+```
+
+
+3..loom files  - Used to hold large data of scRNA 
+
+```{r}
+#Step 1 - Open a loom file
+loom_obj <- Connect(filename = "../Fileformat/training_session_datasets/adult-hem-organs-10X-bone-marrow.loom", mode = "r")
+
+#Step 2 Convert to Seurat
+loom_seurat <- as.Seurat(loom_obj)
+```
+
+4.Anndata  .h5ad format
+```{r}
+#Step 1 Convert h5ad to h5seurat
+Convert("../Fileformat/adata_SS2_for_download.h5ad", dest = "h5seurat", overwrite = TRUE)
+```
+```{r}
+#Step 2 - Load h5seuart a seurat obj
+h5ad_seuratr <- LoadH5Seurat("../Fileformat/adata_SS2_for_download.h5seurat", images = FALSE)
+```
+
